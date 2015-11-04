@@ -39,124 +39,66 @@ def up(eqdata, window=100, selection='Adj Close'):
     i = 0
     return upvel
 
-class _MaxHeap:
+class _CircArr(object):
     """
-    Heap implementation with functionality specific to the present
-    task. https://docs.python.org/2/library/heapq.html doesn't allow
-    us to clear the heap just by resetting the size, so we can get
-    lower overhead using our own implementation.
-
-    Heap may not be the right data structure here. We need not only
-    to have access to the highest of the last 100 days but also to
-    be able to locate and eliminate the oldest session once 100 are stored.
-
-    Moreover, for the up velocity, only a downward trend is relevant. For example,
-    suppose we have:
-    
-     0  2.5
-     1  2.4
-     2  2.0
-     3  2.3
-
-    Then value 2 can never be of any use from day 3 onward.
+    For maintaining a list of relevant indices
     """
-    def __init__(self, data, maxsize):
+    def __init__(self, data, window, compfn):
         """
-        The actual heap size is always 0 on initialization,
-        but the underlying array is set here to the maximum
-        size to which the heap can expand.
+        Circular array for maintaining indices of price data
+        relevant for determining velocity.
 
-        The dynamic heap contains only indices. The `data` field
-        is expected to be the numpy `ndarray` containing price data.
-        These are the values used to determine which index has
-        priority.
+        Parameters
+        ---------- 
+        data : ndarray
+            Array containing relevant price data
+
+        window : int
+            Size of the window.
+
+        compfn : Function
+            Function used to compare 2 data values. This is passed so 
+            that we can use the same class for both `up` and `down` velocity.
         """
-        self._content = [0] * maxsize
-        self._size = 0
+        self._indices = [0] * window
+        self._window = window
         self._data = data
-
-    @staticmethod
-    def _parent(i):
-        return (i - 1) / 2
-
-    @staticmethod
-    def _left(i):
-        return 2 * i + 1
-
-    @staticmethod
-    def _right(i):
-        return 2 * i + 2
+        self._begin = -1
+        self._size = 0
+        self._compfn = compfn
 
     def _reset(self, ix):
-        """
-        Reset the underlying array, inserting the given index
-        as sole content. The size of the heap will always
-        be 1 after this operation.
-        """
-        self._content[0] = ix
+        self._begin = 0
         self._size = 1
-
-    def _exchange(self, i, j):
-        tmp = self._content[i]
-        self._content[i] = self._content[j]
-        self._content[j] = tmp
-
-    def _higher(self, i, j):
-        """
-        Return a boolean that is True iff i represents a higher
-        price than j.
-        In case of a price tie, the old value is greater: No new
-        high has been set.
-        """
-        if self._data[self._content[i]] > self._data[self._content[j]]:
-            return True
-        if self._data[self._content[i]] == self._data[self._content[j]] and i < j:
-            return True
-        return False
-
-    def _heapify(self, i):
-        """
-        Cf. CLRS, p. 154
-        """
-        l = _left(i)
-        if l >= self._size:
-            return
-        r = _right(i)
-        largest = i
-        if self._higher(l, i):
-            largest = l
-        if r < self._size and self._higher(r, largest):
-            largest = r
-        if largest != i:
-            self._exchange(i, largest)
-            self._heapify(largest)
-
-    def _pop(self):
-        """
-        Cf. CLRS, p. 163
-        We don't care what the value is but only need to reorganize
-        the heap, so no return value.
-        """
-        self._content[0] = self._content[self._size - 1]
-        self._size -= 1
-        self._heapify(0)
-
-    def _increase_key(self, i, key):
-        """ CLRS, p. 164 """
-        self._content[i] = key
-        while i > 0 and self._higher(i, _parent(i)):
-            self._exchange(i, _parent(i))
-            i = _parent(i)
-
-    def peak(self):
-        return self._content[0]
+        self._indices[0] = ix
 
     def insert(self, ix):
+        if self._size == 0:
+            self._begin = ix
+            self._size = 1
+            return
+        if ix - self._indices[self._begin] >= self._window:
+            # TODO
+        insert_at = self._find(ix)
+
+    def _find(self, ix):
+        return self._rec_find(ix, self._begin, self._size)
+
+    def _rec_find(self, ix, begin, length):
+        """ 
+        Recursive find using binary search 
+        `begin` is the first index to search, `length` is 1 past the end.
         """
-        Inserts new value and returns number of days
-        since window high.
-        """
-        if self._data[self._content[0]] < self._data[ix]:
-            self._reset(ix)
-            return 0
+        # base case
+        if length <= 1:
+            if self._compfn(self._data[ix], self._data[begin]):
+                return begin
+            return (begin + 1) % self._window
+        halflen = length / 2
+        middle = (begin + halflen) % self._window
+        if self._compfn(self._data[ix], self._data[middle]):
+            return self._rec_find(ix, begin, halflen)
+        return self._rec_find(ix, begin + halflen, length - halflen)
+
+
 
