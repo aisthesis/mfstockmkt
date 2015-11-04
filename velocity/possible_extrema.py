@@ -12,7 +12,7 @@ class PossibleExtrema(object):
     """
     def __init__(self, data, window, compfn):
         """
-        Circular array for maintaining indices of price data
+        Circular buffer for maintaining indices of price data
         relevant for determining velocity.
 
         Parameters
@@ -43,10 +43,12 @@ class PossibleExtrema(object):
                 self._size -= 1
             insert_at = self._find(ix)
         self._indices[insert_at] = ix
+        days_since_extremum = ix - self._indices[self._begin]
         # new element inserted, now recalculate self._size
         if insert_at < self._begin:
             insert_at += self._WINDOW
         self._size = insert_at - self._begin + 1
+        return days_since_extremum
 
     def _find(self, ix):
         return self._rec_find(ix, self._begin, self._size)
