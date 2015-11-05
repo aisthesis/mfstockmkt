@@ -10,6 +10,8 @@ import numpy as np
 import pandas as pd
 import pynance as pn
 
+from possible_extrema import PossibleExtrema
+
 def up(eqdata, window=100, selection='Adj Close'):
     """
     Return a dataframe with upward velocity data.
@@ -32,8 +34,9 @@ def up(eqdata, window=100, selection='Adj Close'):
     upvel : DataFrame
     """
     outcol = 'Velocity'
-    outix = eqdata.index[window:]
-    upvel = pd.DataFrame(index=outix, columns=[outcol], dtype='float64')
+    outix = eqdata.index[(window - 1):]
+    inputdata = eqdata.loc[selection].values
+    upvel = pd.DataFrame(index=outix, columns=[outcol], dtype='int64')
 
     dayssincehigh = 0
     i = 0

@@ -27,8 +27,10 @@ class PossibleExtrema(object):
             Function used to compare 2 data values. This is passed so 
             that we can use the same class for both `up` and `down` velocity.
         """
-        self._indices = [0] * window
-        self._WINDOW = window
+        # we need to compare today with window + 1 values so that
+        # insert() returns at most `window` and not `window - 1`
+        self._WINDOW = window + 1
+        self._indices = [0] * self._WINDOW
         self._data = data
         self._begin = 0
         self._size = 0
