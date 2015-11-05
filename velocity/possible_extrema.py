@@ -67,4 +67,4 @@ class PossibleExtrema(object):
         middle = (begin + halflen) % self._WINDOW
         if self._compfn(self._data[ix], self._data[self._indices[middle]]):
             return self._rec_find(ix, begin, halflen)
-        return self._rec_find(ix, begin + halflen, length - halflen)
+        return self._rec_find(ix, (begin + halflen) % self._WINDOW, length - halflen)
