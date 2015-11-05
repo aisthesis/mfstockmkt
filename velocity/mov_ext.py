@@ -6,9 +6,10 @@ Data structure for storing possible velocity extrema
 =================
 """
 
-class PossibleExtrema(object):
+class MovingExtremumFinder(object):
     """
-    For maintaining a list of relevant indices
+    For maintaining a list of relevant indices for tracking a moving
+    extremum.
     """
     def __init__(self, data, window, compfn):
         """

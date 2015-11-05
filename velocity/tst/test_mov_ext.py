@@ -13,19 +13,19 @@ import unittest
 import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from possible_extrema import PossibleExtrema
+from mov_ext import MovingExtremumFinder
 
-class TestPossibleExtrema(unittest.TestCase):
+class TestMovingExtremumFinder(unittest.TestCase):
 
     def test_insert_overflow(self):
         window = 2
         data = np.array([1., .9, .8, .7])
         length = data.shape[0]
-        poss_highs = PossibleExtrema(data, window, operator.gt)
+        high_finder = MovingExtremumFinder(data, window, operator.gt)
         for i in range(length):
-            poss_highs.insert(i)
-        self.assertEqual(poss_highs._begin, 1, 'incorrect starting point for circle')
-        self.assertEqual(poss_highs._indices, [3, 1, 2], 'incorrect indices')
+            high_finder.insert(i)
+        self.assertEqual(high_finder._begin, 1, 'incorrect starting point for circle')
+        self.assertEqual(high_finder._indices, [3, 1, 2], 'incorrect indices')
 
     def test_insert_output(self):
         window = 3
@@ -34,9 +34,9 @@ class TestPossibleExtrema(unittest.TestCase):
         data = np.array(seq)
         length = data.shape[0]
         actual = [0] * length
-        poss_highs = PossibleExtrema(data, window, operator.gt)
+        high_finder = MovingExtremumFinder(data, window, operator.gt)
         for i in range(length):
-            actual[i] = poss_highs.insert(i)
+            actual[i] = high_finder.insert(i)
         self.assertEqual(expected, actual, 'incorrect velocity series')
 
 if __name__ == '__main__':
