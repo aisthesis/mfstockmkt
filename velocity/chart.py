@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 import constants
 
-def show(vel_df):
+def show(vel_df, title='Velocity'):
     pricecol = vel_df.columns[0]
     upcol = constants.UPVEL_COL
     downcol = constants.DOWNVEL_COL
@@ -25,5 +25,6 @@ def show(vel_df):
     ax2 = plt.subplot2grid((6, 6), (5, 0), sharex=ax1, rowspan=1, colspan=6)
     upvel_line = ax2.plot(vel_df.index, vel_df.loc[:, upcol], color='g')
     downvel_line = ax2.plot(vel_df.index, vel_df.loc[:, downcol], color='r')
+    plt.suptitle(title)
     plt.show()
     plt.close()
