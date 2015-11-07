@@ -37,6 +37,8 @@ def rolling_vel(eqdata, window=100, selection='Adj Close'):
     -------
     mov_vel : DataFrame
     """
+    if window + 1 >= eqdata.index.shape[0]:
+        raise ValueError('insufficient data for given window')
     outix = eqdata.index[window:]
     upcol = constants.UPVEL_COL
     downcol = constants.DOWNVEL_COL

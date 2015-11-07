@@ -56,6 +56,8 @@ def simulate(equities, start, end, window=100, investment=10000):
     """
     result = {
             'Equities': equities,
+            'Start': start,
+            'End': end,
             'Window': window,
             'Investment': investment,
             'Buy Count': 0,
@@ -79,36 +81,40 @@ def simulate(equities, start, end, window=100, investment=10000):
     return result
 
 def _sim_eq(eqdata, window, investment, pricecol, result):
-    veldata = velo.rolling_vel(eqdata, window, pricecol)
-    print("Valid equity data starts on {}".format(veldata.index[0]))
-    revs = reversals(veldata, pricecol)
-    invested = False
-    buyprice = 0.
-    sellprice = 0.
-    buydate = None
-    lastdate = None
-    days_at_risk = 0
-    for rev in revs:
-        if rev['Action'] == 'Buy':
-            invested = True
-            buyprice = rev['Price']
-            buydate = rev['Date']
-            result['Buy Count'] += 1
-            result['Total Invested'] += investment
-            continue
-        if invested and rev['Action'] == 'Sell':
-            invested = False
-            sellprice = rev['Price']
-            result['Triggered Sell Count'] += 1
-            result['Total Sales'] += investment * sellprice / buyprice
-            days_at_risk = (rev['Date'] - buydate).days
+    try:
+        veldata = velo.rolling_vel(eqdata, window, pricecol)
+    except ValueError as e:
+        print('ValueError: {}'.format(e))
+    else:
+        print("Valid equity data starts on {}".format(veldata.index[0]))
+        revs = reversals(veldata, pricecol)
+        invested = False
+        buyprice = 0.
+        sellprice = 0.
+        buydate = None
+        lastdate = None
+        days_at_risk = 0
+        for rev in revs:
+            if rev['Action'] == 'Buy':
+                invested = True
+                buyprice = rev['Price']
+                buydate = rev['Date']
+                result['Buy Count'] += 1
+                result['Total Invested'] += investment
+                continue
+            if invested and rev['Action'] == 'Sell':
+                invested = False
+                sellprice = rev['Price']
+                result['Triggered Sell Count'] += 1
+                result['Total Sales'] += investment * sellprice / buyprice
+                days_at_risk = (rev['Date'] - buydate).days
+                result['Days at Risk'] += days_at_risk
+        if invested:
+            print('Still invested at end of simulation. Selling')
+            lastdate = veldata.index[-1]
+            days_at_risk = (lastdate - buydate).days
+            result['Total Sales'] += investment * veldata.loc[lastdate, pricecol] / buyprice
             result['Days at Risk'] += days_at_risk
-    if invested:
-        print('Still invested at end of simulation. Selling')
-        lastdate = veldata.index[-1]
-        days_at_risk = (lastdate - buydate).days
-        result['Total Sales'] += investment * veldata.loc[lastdate, pricecol] / buyprice
-        result['Days at Risk'] += days_at_risk
 
 def reversals(vel_all, pricecol='Adj Close'):
     bullish = True
