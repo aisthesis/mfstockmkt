@@ -17,10 +17,36 @@ def straddle(allstrikes, eqprice):
         return [allstrikes[-1]]
     return []
 
+def allforexp(opts, exp, opttype):
+    strikes = opts.data.xs((exp, opttype), level=('Expiry', 'Type')).index.get_level_values(0)
+    return map(_forcetofloat, strikes)
+
 def matchedforexp(opts, exp):
-    callstrikes = opts.data.xs((exp, 'call'), level=('Expiry', 'Type')).index.get_level_values(0)
-    putstrikes = opts.data.xs((exp, 'put'), level=('Expiry', 'Type')).index.get_level_values(0)
-    return _matching(callstrikes, putstrikes)
+    return _matching(allforexp(opts, exp, 'call'), allforexp(opts, exp, 'put'))
+
+def getlastmatched(strike_to_match, strikes, endix, epsilon=.01):
+    """
+    Return the index of the last item in a sorted list of
+    strikes that matches strike_to_match. Search descending from endix
+    in the list of strikes.
+    A match is defined as a strike differing from strike_to_match
+    by less than epsilon.
+    Return -1 if no match is found.
+    """
+    while endix >= 0:
+        if abs(strike_to_match - strikes[endix]) < epsilon:
+            return endix
+        if strikes[endix] < strike_to_match:
+            return -1
+        endix -= 1
+    return -1
+
+def _forcetofloat(val):
+    try:
+        return float(val)
+    except ValueError:
+        # strings with commas are the concern, e.g. '1,040.00'
+        return float(val.replace(',', ''))
 
 def _matching(callstrikes, putstrikes):
     icall = -1
