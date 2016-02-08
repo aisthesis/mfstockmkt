@@ -6,10 +6,12 @@ Diagonal butterfly scanner
 """
 
 import locale
+import traceback
 
 import pandas as pd
 import pynance as pn
 
+import constants
 import strike
 
 def scan_all():
@@ -23,46 +25,7 @@ def scan_all():
     """
     loc = locale.getlocale()
     locale.setlocale(locale.LC_ALL, 'en_US')
-    equities = [
-            'AAON',
-            'ALXN',
-            'AMGN',
-            'AMZN',
-            'AOS',
-            'APOG',
-            'BIDU',
-            'BIIB',
-            'BMRN',
-            'CELG',
-            'CHSP',
-            'CRM',
-            'CSIQ',
-            'DLX',
-            'FB',
-            'FSLR',
-            'GILD',
-            'GK',
-            'GNMSF',
-            'GOOGL' 
-            'INCY',
-            'JCOM',
-            'JD',
-            'MDP',
-            'MDVN',
-            'MMS',
-            'NFLX',
-            'PACW',
-            'PCLN',
-            'PEB',
-            'REGN',
-            'SCTY',
-            'SPWR',
-            'SSNC',
-            'TSLA',
-            'UBSI',
-            'VRTX',
-            'YHOO',
-            ]
+    equities = constants.DGB_EQUITIES
     orig_len = len(equities)
     # remove duplicates
     equities = list(set(equities))
@@ -73,9 +36,12 @@ def scan_all():
     butterflies = []
     for equity in equities:
         print("Scanning diagonal butterfly spreads for '{}'".format(equity))
-        btfs_for_eq = scan(equity)
-        print("{} spreads found for '{}'".format(len(btfs_for_eq), equity))
-        butterflies.extend(btfs_for_eq)
+        try:
+            btfs_for_eq = scan(equity)
+            print("{} spreads found for '{}'".format(len(btfs_for_eq), equity))
+            butterflies.extend(btfs_for_eq)
+        except Exception:
+            traceback.print_exc()
     locale.setlocale(locale.LC_ALL, loc)
     return butterflies
 
@@ -92,6 +58,23 @@ def scan(equity):
     for straddle in straddles:
         butterflies.extend(_btrflies(opts, straddle))
     return butterflies
+
+def show_spreads(butterflies):
+    for butterfly in butterflies:
+        print('')
+        show_spread(butterfly)
+
+def show_spread(butterfly):
+    print("{} at {:.2f}:".format(butterfly['underlying'], butterfly['eqprice']))
+    print("credit: {:.2f}".format(butterfly['credit']))
+    print("risk: {:.2f}".format(butterfly['risk']))
+    print("ratio: {:.4f}".format(butterfly['ratio']))
+    print("straddle: {:.2f} at strike {:.2f} on {}".format(butterfly['straddle']['price'],
+            butterfly['straddle']['strike'], butterfly['straddle']['exp'].date())) 
+    print("put: {:.2f} at strike {:.2f} on {}".format(butterfly['put']['price'],
+            butterfly['put']['strike'], butterfly['farexp'].date())) 
+    print("call: {:.2f} at strike {:.2f} on {}".format(butterfly['call']['price'],
+            butterfly['call']['strike'], butterfly['farexp'].date())) 
 
 def _getoptprice(opts, opttype, strike, exp):
     """
@@ -151,7 +134,8 @@ def _btfsforexp(opts, straddle, exp):
                         'risk': risk,
                         'credit': credit,
                         'ratio': straddle['price'] / farprice,
-                        'underlying': opts.data.iloc[0, :].loc['Underlying']
+                        'underlying': opts.data.iloc[0, :].loc['Underlying'],
+                        'eqprice': opts.data.iloc[0].loc['Underlying_Price']
                         })
     return butterflies
 
@@ -175,5 +159,4 @@ def _straddleprice(opts, strike, exp):
 
 if __name__ == '__main__':
     butterflies = scan_all()
-    for butterfly in butterflies:
-        print(butterfly)
+    show_spreads(butterflies)
