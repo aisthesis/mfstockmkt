@@ -23,7 +23,53 @@ def scan_all():
     """
     loc = locale.getlocale()
     locale.setlocale(locale.LC_ALL, 'en_US')
-    equities = ['AMGN', 'AMZN', 'FB', 'FSLR', 'GILD', 'GOOGL', 'NFLX', 'SPWR', 'TSLA']
+    equities = [
+            'AAON',
+            'ALXN',
+            'AMGN',
+            'AMZN',
+            'AOS',
+            'APOG',
+            'BIDU',
+            'BIIB',
+            'BMRN',
+            'CELG',
+            'CHSP',
+            'CRM',
+            'CSIQ',
+            'DLX',
+            'FB',
+            'FSLR',
+            'GILD',
+            'GK',
+            'GNMSF',
+            'GOOGL' 
+            'INCY',
+            'JCOM',
+            'JD',
+            'MDP',
+            'MDVN',
+            'MMS',
+            'NFLX',
+            'PACW',
+            'PCLN',
+            'PEB',
+            'REGN',
+            'SCTY',
+            'SPWR',
+            'SSNC',
+            'TSLA',
+            'UBSI',
+            'VRTX',
+            'YHOO',
+            ]
+    orig_len = len(equities)
+    # remove duplicates
+    equities = list(set(equities))
+    equities.sort()
+    if len(equities) != orig_len:
+        print('equities list contains {} duplicates'.format(orig_len - len(equities)))
+    print('scanning {} equities for diagonal butterfly spreads'.format(len(equities)))
     butterflies = []
     for equity in equities:
         print("Scanning diagonal butterfly spreads for '{}'".format(equity))
