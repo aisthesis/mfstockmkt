@@ -45,3 +45,14 @@ DGB_EQUITIES = [
         'VRTX',
         'YHOO',
         ]
+
+DGB_TRACK = [
+        {   
+        'underlying': 'TSLA',
+        'straddle': {
+            'strike': 150.,
+            'exp': '2016-06-17'},
+        'farexp': '2016-09-16',
+        'put': {'strike': 110.},
+        'call': {'strike': 190.}
+        }]

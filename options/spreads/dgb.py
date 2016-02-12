@@ -70,13 +70,16 @@ def show_spread(butterfly):
     print("risk: {:.2f}".format(butterfly['risk']))
     print("ratio: {:.4f}".format(butterfly['ratio']))
     print("straddle: {:.2f} at strike {:.2f} on {}".format(butterfly['straddle']['price'],
-            butterfly['straddle']['strike'], butterfly['straddle']['exp'].date())) 
+            butterfly['straddle']['strike'], _formattedexp(butterfly['straddle']['exp']))) 
     print("put: {:.2f} at strike {:.2f} on {}".format(butterfly['put']['price'],
-            butterfly['put']['strike'], butterfly['farexp'].date())) 
+            butterfly['put']['strike'], _formattedexp(butterfly['farexp']))) 
     print("call: {:.2f} at strike {:.2f} on {}".format(butterfly['call']['price'],
-            butterfly['call']['strike'], butterfly['farexp'].date())) 
+            butterfly['call']['strike'], _formattedexp(butterfly['farexp']))) 
 
-def _getoptprice(opts, opttype, strike, exp):
+def getstraddleprice(opts, strike, exp):
+    return getoptprice(opts, 'call', strike, exp) + getoptprice(opts, 'put', strike, exp)
+
+def getoptprice(opts, opttype, strike, exp):
     """
     This wrapper is needed because strikes with commas
     are being returned as strings by pandas-datareader
@@ -86,6 +89,12 @@ def _getoptprice(opts, opttype, strike, exp):
     except KeyError:
         strikestr = locale.format("%0.2f", strike, grouping=True)
         return opts.price.get(opttype, strikestr, exp)
+
+def _formattedexp(exp):
+    try:
+        return exp.date()
+    except AttributeError:
+        return exp
 
 def _btrflies(opts, straddle):
     difffilter = {}
@@ -118,8 +127,8 @@ def _btfsforexp(opts, straddle, exp):
             sentinel = strike.getlastmatched(straddle['strike'] + distance, callstrikes, callix)
             if sentinel >= 0:
                 callix = sentinel
-                callprice = _getoptprice(opts, 'call', callstrikes[callix], exp)
-                putprice = _getoptprice(opts, 'put', pstrike, exp)
+                callprice = getoptprice(opts, 'call', callstrikes[callix], exp)
+                putprice = getoptprice(opts, 'put', pstrike, exp)
                 farprice = callprice + putprice
                 credit = straddle['price'] - farprice
                 if credit <= 0.:
@@ -151,11 +160,8 @@ def _straddles(opts, exp):
     eqprice = opts.data.iloc[0].loc['Underlying_Price']
     straddlestrikes = strike.straddle(allstrikes, eqprice)
     for sstrike in straddlestrikes:
-        straddles.append({'exp': exp, 'strike': sstrike, 'price': _straddleprice(opts, sstrike, exp)})
+        straddles.append({'exp': exp, 'strike': sstrike, 'price': getstraddleprice(opts, sstrike, exp)})
     return straddles
-
-def _straddleprice(opts, strike, exp):
-    return _getoptprice(opts, 'call', strike, exp) + _getoptprice(opts, 'put', strike, exp)
 
 if __name__ == '__main__':
     butterflies = scan_all()
