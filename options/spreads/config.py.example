@@ -1,0 +1,11 @@
+"""
+.. Copyright (c) 2016 Marshall Farrier
+   license http://opensource.org/licenses/MIT
+
+Example configurations
+
+Copy this file to `config.py` and make changes there
+as appropriate for your system.
+"""
+
+LOG_ROOT = '/usr/local/var/log'

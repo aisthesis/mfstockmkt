@@ -56,3 +56,5 @@ DGB_TRACK = [
         'put': {'strike': 110.},
         'call': {'strike': 190.}
         }]
+
+LOG_FMT = "%(asctime)s %(levelname)s %(module)s.%(funcName)s : %(message)s"
