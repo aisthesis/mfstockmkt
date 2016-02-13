@@ -11,8 +11,10 @@ Opens and closes db connection.
 """
 from pymongo import MongoClient
 
-def job(conn_name, logger, fn):
-    _client = MongoClient(conn_name)
+import config
+
+def job(logger, fn):
+    _client = MongoClient(config.MONGO_CLIENT['host'], config.MONGO_CLIENT['host']))
     logger.info("db connection opened")
     try:
         _ret = fn(logger, _client)

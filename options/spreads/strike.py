@@ -19,7 +19,7 @@ def straddle(allstrikes, eqprice):
 
 def allforexp(opts, exp, opttype):
     strikes = opts.data.xs((exp, opttype), level=('Expiry', 'Type')).index.get_level_values(0)
-    return map(_forcetofloat, strikes)
+    return list(map(_forcetofloat, strikes))
 
 def matchedforexp(opts, exp):
     return _matching(allforexp(opts, exp, 'call'), allforexp(opts, exp, 'put'))

@@ -58,3 +58,4 @@ DGB_TRACK = [
         }]
 
 LOG_FMT = "%(asctime)s %(levelname)s %(module)s.%(funcName)s : %(message)s"
+LOG_PATH = 'mfstockmkt/options/spreads'
