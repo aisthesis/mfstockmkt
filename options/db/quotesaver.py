@@ -13,9 +13,8 @@ import pynance as pn
 import config
 import constants
 import dbwrapper
-from trackfinder import TrackFinder
 
-class QuotePuller(object):
+class DgbSaver(object):
 
     def __init__(self):
         self.logger = logging.getLogger('dgb_save')
@@ -43,19 +42,8 @@ class QuotePuller(object):
     def save(self, quotes):
         pass
 
-def _getlogger():
-    logger = logging.getLogger('quotepuller')
-    loglevel = logging.INFO if config.ENV == 'prod' else logging.DEBUG
-    logger.setLevel(loglevel)
-    log_dir = _getlogdir()
-    handler = logging.FileHandler(os.path.join(log_dir, 'service.log'))
-    formatter = logging.Formatter(constants.LOG['format'])
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    return logger
-
-def _getlogdir():
-    log_dir = os.path.normpath(os.path.join(config.LOG_ROOT, constants.LOG['path']))
+def _make_log_dir():
+    log_dir = os.path.normpath(os.path.join(config.LOG_ROOT, constants.LOG_PATH, 'dgb_save'))
     try:
         os.makedirs(log_dir)
     except OSError:
@@ -63,10 +51,5 @@ def _getlogdir():
             raise
     return log_dir
 
-def _run():
-    logger = _getlogger()
-    trackfinder = TrackFinder(logger)
-    print(trackfinder.get())
-
 if __name__ == '__main__':
-    _run()
+    DgbSaver().run()
