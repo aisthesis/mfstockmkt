@@ -23,19 +23,17 @@ class Menu(object):
         self.actions = {
                 'main': {
                     '0': lambda: False,
-                    '1': self.track_single
-                    }
+                    '1': self._track_single,
+                    '2': self._spread_menu,
+                    },
+                'spread': {
+                    '0': lambda: True,
+                    '1': self._track_dgb,
+                    },
                 }
         self.tz = pytz.timezone('US/Eastern')
         self.logger = _getlogger()
         self.logger.debug('logger created')
-
-    def exec_menu(self, name, choice):
-        try:
-            return self.actions[name][choice.strip()]()
-        except KeyError:
-            print('Invalid selection')
-            return True
 
     def start(self):
         proceed = True
@@ -47,15 +45,40 @@ class Menu(object):
             print('4. Stop tracking spread')
             print('\n0. Quit')
             choice = input('\nEnter selection: ')
-            proceed = self.exec_menu('main', choice)
+            proceed = self._exec_menu('main', choice)
         
-    def track_single(self):
+    def _exec_menu(self, name, choice):
+        try:
+            return self.actions[name][choice.strip()]()
+        except KeyError:
+            print('Invalid selection')
+            return True
+
+    def _spread_menu(self):
+        print('\nSelect spread:')
+        print('1. Diagonal butterfly')
+        print('\n0. Return to main menu')
+        choice = input('\nEnter selection: ')
+        return self._exec_menu('spread', choice)
+
+    def _track_single(self):
         entry = {}
         entry['Underlying'] = input('Underlying equity: ').strip().upper()
         entry['Opt_Type'] = _getopttype(input('Option type (c[all] or p[ut]): '))
-        entry['Strike'] = float(input('Strike: '))
         entry['Expiry'] = self._getexpdt(input('Expiration (yyyy-mm-dd): '))
+        entry['Strike'] = float(input('Strike: '))
         self._confirmsave((entry,))
+        return True
+
+    def _track_dgb(self):
+        print('\nTrack diagonal butterfly:')
+        underlying = input('Underlying equity: ').strip().upper()
+        straddleexp = self._getexpdt(input('Straddle expiration (yyyy-mm-dd): '))
+        straddlestrike = float(input('Straddle strike: '))
+        farexp = self._getexpdt(input('Far expiration (yyyy-mm-dd): '))
+        distance = float(input('Distance between strikes: '))
+        entries = _get_dgbentries(underlying, straddleexp, straddlestrike, farexp, distance)
+        self._confirmsave(entries)
         return True
 
     def _getexpdt(self, expstr):
@@ -70,6 +93,18 @@ class Menu(object):
             job(self.logger, partial(_saveentries, entries))
         else:
             print('Aborting: option(s) not saved!')
+
+def _get_dgbentries(underlying, straddleexp, straddlestrike, farexp, distance):
+    entries = []
+    farstrikes = {'call': straddlestrike + distance, 'put': straddlestrike - distance}
+    for key in farstrikes:
+        # straddle
+        entries.append({'Underlying': underlying, 'Opt_Type': key, 'Expiry': straddleexp,
+            'Strike': straddlestrike})
+        # long-term spread
+        entries.append({'Underlying': underlying, 'Opt_Type': key, 'Expiry': farexp,
+            'Strike': farstrikes[key]})
+    return entries
 
 def _saveentries(entries, logger, client):
     msg = 'Saving {} entries'.format(len(entries))
@@ -88,7 +123,9 @@ def _saveentries(entries, logger, client):
         logger.exception("error writing to database")
         raise
     else:
-        logger.info('{} records inserted'.format(result['nInserted']))
+        msg = '{} records saved'.format(result['nInserted'])
+        print(msg)
+        logger.info(msg)
 
 def _showentries(entries):
     for entry in entries:
@@ -105,8 +142,8 @@ def _getopttype(selection):
 def _showentry(entry):
     print('Underlying: {}'.format(entry['Underlying']))
     print('Opt_Type: {}'.format(entry['Opt_Type']))
-    print('Strike: {:.2f}'.format(entry['Strike']))
     print('Expiry: {}'.format(entry['Expiry'].strftime('%Y-%m-%d')))
+    print('Strike: {:.2f}'.format(entry['Strike']))
 
 def _getlogger():
     logger = logging.getLogger('track')
