@@ -5,6 +5,7 @@
 Interactively start and stop tracking an option.
 """
 
+from bson.codec_options import CodecOptions
 import datetime as dt
 from functools import partial
 import logging
@@ -73,6 +74,7 @@ class Menu(object):
 
     def _show_tracked(self):
         underlying = input('Underlying equity: ').strip().upper()
+        job(self.logger, partial(_show_all_fromdb, self.tz, underlying))
         return True
 
     def _track_single(self):
@@ -130,10 +132,22 @@ def _get_dgbentries(underlying, straddleexp, straddlestrike, farexp, distance):
             'Strike': farstrikes[key]})
     return entries
 
-def _get_trackcoll(client):
+def _show_all_fromdb(tz, underlying, logger, client):
+    c_opts = CodecOptions(tz_aware=True)
+    trackcoll = _get_trackcoll(client, codec_options=c_opts)
+    print('\nEntries for {}:\n'.format(underlying))
+    for entry in trackcoll.find({'Underlying': underlying}):
+        _show_foreq_fromdb(tz, entry)
+
+def _show_foreq_fromdb(tz, entry):
+    print('Opt_Type: {}'.format(entry['Opt_Type']))
+    print('Expiry: {}'.format(entry['Expiry'].astimezone(tz).strftime('%Y-%m-%d')))
+    print('Strike: {:.2f}\n'.format(entry['Strike']))
+
+def _get_trackcoll(client, **kwargs):
     dbname = constants.DB[config.ENV]['name']
     _db = client[dbname]
-    return _db['track']
+    return _db.get_collection('track', **kwargs)
 
 def _delentry(entry, logger, client):
     logger.info('removing 1 option from track collection')
