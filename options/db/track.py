@@ -25,6 +25,8 @@ class Menu(object):
                     '0': lambda: False,
                     '1': self._track_single,
                     '2': self._spread_menu,
+                    '3': self._stop_track,
+                    '4': self._show_tracked,
                     },
                 'spread': {
                     '0': lambda: True,
@@ -42,7 +44,7 @@ class Menu(object):
             print('1. Start tracking single option')
             print('2. Start tracking spread')
             print('3. Stop tracking single option')
-            print('4. Stop tracking spread')
+            print('4. Show tracked')
             print('\n0. Quit')
             choice = input('\nEnter selection: ')
             proceed = self._exec_menu('main', choice)
@@ -61,13 +63,26 @@ class Menu(object):
         choice = input('\nEnter selection: ')
         return self._exec_menu('spread', choice)
 
-    def _track_single(self):
+    def _single_menu(self):
         entry = {}
         entry['Underlying'] = input('Underlying equity: ').strip().upper()
         entry['Opt_Type'] = _getopttype(input('Option type (c[all] or p[ut]): '))
         entry['Expiry'] = self._getexpdt(input('Expiration (yyyy-mm-dd): '))
         entry['Strike'] = float(input('Strike: '))
-        self._confirmsave((entry,))
+        return entry
+
+    def _show_tracked(self):
+        underlying = input('Underlying equity: ').strip().upper()
+        return True
+
+    def _track_single(self):
+        entries = (self._single_menu(),)
+        self._confirmsave(entries)
+        return True
+
+    def _stop_track(self):
+        entry = self._single_menu()
+        self._confirmdelete(entry)
         return True
 
     def _track_dgb(self):
@@ -92,7 +107,16 @@ class Menu(object):
         if choice == 'y':
             job(self.logger, partial(_saveentries, entries))
         else:
-            print('Aborting: option(s) not saved!')
+            print('Aborting: option(s) NOT saved!')
+
+    def _confirmdelete(self, entry):
+        print('\nDeleting the following option:')
+        _showentry(entry)
+        choice = input('\nStop tracking this option (y/n)? ').lower()
+        if choice == 'y':
+            job(self.logger, partial(_delentry, entry))
+        else:
+            print('Aborting: option NOT deleted!')
 
 def _get_dgbentries(underlying, straddleexp, straddlestrike, farexp, distance):
     entries = []
@@ -106,13 +130,30 @@ def _get_dgbentries(underlying, straddleexp, straddlestrike, farexp, distance):
             'Strike': farstrikes[key]})
     return entries
 
+def _get_trackcoll(client):
+    dbname = constants.DB[config.ENV]['name']
+    _db = client[dbname]
+    return _db['track']
+
+def _delentry(entry, logger, client):
+    logger.info('removing 1 option from track collection')
+    logger.debug('deleting: {}'.format(entry))
+    trackcoll = _get_trackcoll(client)
+    result = trackcoll.delete_many(entry)
+    n_deleted = result.deleted_count
+    if n_deleted > 0:
+        msg = '{} record deleted'.format(n_deleted)
+        print(msg)
+        logger.info(msg)
+    else:
+        print('\nNo matching entry found. Record was NOT deleted.\n')
+        logger.warn('Record not found: {}'.format(entry))
+
 def _saveentries(entries, logger, client):
     msg = 'Saving {} entries'.format(len(entries))
     print(msg)
     logger.info(msg)
-    dbname = constants.DB[config.ENV]['name']
-    _db = client[dbname]
-    trackcoll = _db['track']
+    trackcoll = _get_trackcoll(client)
     bulk = trackcoll.initialize_unordered_bulk_op()
     for entry in entries:
         bulk.insert(entry)
