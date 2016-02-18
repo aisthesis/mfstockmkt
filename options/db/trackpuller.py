@@ -12,7 +12,7 @@ import config
 import constants
 from dbwrapper import job
 
-class TrackFinder(object):
+class TrackPuller(object):
 
     def __init__(self, logger):
         self.logger = logger
