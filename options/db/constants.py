@@ -2,7 +2,7 @@
 .. Copyright (c) 2016 Marshall Farrier
    license http://opensource.org/licenses/MIT
 
-Constants for working with a database
+Constants for working with an options database
 """
 
 LOG = {
@@ -18,3 +18,6 @@ DB = {
             'name': 'optMkt'
             }
         }
+
+INT_COLS = ('Vol', 'Open_Int',)
+FLOAT_COLS = ('Last', 'Bid', 'Ask',)

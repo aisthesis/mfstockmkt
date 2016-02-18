@@ -4,69 +4,59 @@
 
 Save data for specific diagonal butterflies.
 """
-
-import logging
-import os
+# TODO retry logic
 
 import pynance as pn
+import pytz
 
 import config
 import constants
-import dbwrapper
-from trackfinder import TrackFinder
 
 class QuotePuller(object):
 
-    def __init__(self):
-        self.logger = logging.getLogger('dgb_save')
-        loglevel = logging.INFO if config.ENV == 'prod' else logging.DEBUG
-        self.logger.setLevel(loglevel)
-        log_dir = _make_log_dir()
-        handler = logging.FileHandler(os.path.join(log_dir, 'service.log'))
-        formatter = logging.Formatter(constants.LOG_FMT)
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
+    def __init__(self, logger):
+        self.logger = logger
+        self.tz_useast = pytz.timezone('US/Eastern')
 
-    def run(self):
-        self.logger.debug('running')
-        self.logger.info('information')
-        tracked = self.gettracked()
-        quotes = self.getquotes(tracked)
-        self.save(quotes)
+    def get(self, totrack):
+        """
+        `totrack` is expected to be a dictionary where the underlying
+        is the key and the value is a list of the options to track
+        for that equity
+        """
+        entries = []
+        for underlying in totrack:
+            entries.extend(self._getfromlist(underlying, totrack[underlying]))
+        return entries
 
-    def gettracked(self):
-        pass
+    def _getfromlist(self, underlying, optspecs):
+        self.logger.info('getting option data for {}'.format(underlying))
+        opts = pn.opt.get(underlying)
+        entries = []
+        self.logger.info('getting {} options for {}'.format(len(optspecs), underlying))
+        for spec in optspecs:
+            entry = self._extract(spec, opts)
+            if entry is not None:
+                entries.append(entry)
+        return entries
 
-    def getquotes(self, tracked):
-        pass
+    def _extract(self, spec, opts):
+        entry = spec.copy()
+        selection = (spec['Strike'], spec['Expiry'].astimezone(self.tz_useast).replace(tzinfo=None,
+                hour=0, minute=0, second=0), spec['Opt_Type'],)
+        try:
+            entry['Opt_Symbol'] = opts.data.loc[selection, :].index[0]
+            opt = opts.data.loc[selection, :].iloc[0]
+        except KeyError as e:
+            self.logger.exception('option not found for {} with {}'
+                    .format(opts.data.iloc[0, :].loc['Underlying'], selection))
+            return None
+        entry['Quote_Time'] = self.tz_useast.localize(opt['Quote_Time'].to_datetime())
+        entry['Underlying'] = opt['Underlying']
+        for key in constants.INT_COLS:
+            entry[key] = int(opt[key])
+        for key in constants.FLOAT_COLS:
+            entry[key] = float(opt[key])
+        self.logger.debug(entry)
+        return entry
 
-    def save(self, quotes):
-        pass
-
-def _getlogger():
-    logger = logging.getLogger('quotepuller')
-    loglevel = logging.INFO if config.ENV == 'prod' else logging.DEBUG
-    logger.setLevel(loglevel)
-    log_dir = _getlogdir()
-    handler = logging.FileHandler(os.path.join(log_dir, 'service.log'))
-    formatter = logging.Formatter(constants.LOG['format'])
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    return logger
-
-def _getlogdir():
-    log_dir = os.path.normpath(os.path.join(config.LOG_ROOT, constants.LOG['path']))
-    try:
-        os.makedirs(log_dir)
-    except OSError:
-        if not os.path.isdir(log_dir):
-            raise
-    return log_dir
-
-def _run():
-    logger = _getlogger()
-    trackfinder = TrackFinder(logger)
-    print(trackfinder.get())
-
-if __name__ == '__main__':
-    _run()

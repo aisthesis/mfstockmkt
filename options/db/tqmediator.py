@@ -10,6 +10,7 @@ import os
 
 import config
 import constants
+from quotepuller import QuotePuller
 from trackpuller import TrackPuller
 
 def _getlogger():
@@ -35,7 +36,11 @@ def _getlogdir():
 def _run():
     logger = _getlogger()
     trackpuller = TrackPuller(logger)
-    print(trackpuller.get())
+    totrack = trackpuller.get()
+    quotepuller = QuotePuller(logger)
+    quotes = quotepuller.get(totrack)
+    for quote in quotes:
+        print(quote)
 
 if __name__ == '__main__':
     _run()
