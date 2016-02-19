@@ -5,13 +5,78 @@
 Mediator for workflow to save specific options.
 """
 
+import datetime as dt
 import logging
 import os
+import signal
+import sys
+import time
+
+from pandas.tseries.offsets import BDay
+import pytz
 
 import config
 import constants
 from quotepuller import QuotePuller
 from trackpuller import TrackPuller
+from trackqueue import TrackQueue
+
+class TrackQuoteMediator(object):
+
+    def __init__(self):
+        self._logger = _getlogger()
+        self._prod = config.ENV == 'prod'
+        self._tznyse = pytz.timezone('US/Eastern')
+
+    def start_daemon(self):
+        self._logger.info('daemon starting')
+        signal.signal(signal.SIGINT, self._stop_handler)
+        signal.signal(signal.SIGTERM, self._stop_handler)
+        self._waitfornextclose()
+        while True:
+            self._run_job()
+            self._waitfornextclose()
+
+    def _run_job(self):
+        trackpuller = TrackPuller(self._logger)
+        totrack = trackpuller.get()
+        queue = TrackQueue(self._logger)
+        for underlying in totrack:
+            queue.enqueue({'eq': underlying, 'spec': totrack[underlying]})
+        item = queue.pop()
+        while item is not None:
+            print(item)
+            queue.ack(True)
+            print('acknowledged')
+            item = queue.pop()
+
+    def _waitfornextclose(self):
+        seconds = 3
+        if self._prod:
+            seconds = self._secondsuntilnextclose()
+            self._logger.info('waiting {:.2f} hours until next close'.format(seconds / 3600.))
+        else:
+            self._logger.info('waiting {} seconds in dev mode'.format(seconds))
+        time.sleep(seconds)
+
+    def _secondsuntilnextclose(self):
+        nysenow = dt.datetime.now(tz=self._tznyse)
+        if _is_bday(nysenow):
+            # a few minutes after close to be safe
+            todaysclose = nysenow.replace(hour=16, minute=15)
+            if nysenow >= todaysclose:
+                return 0
+            return (todaysclose - nysenow).seconds
+        nextclose = (nysenow + BDay()).replace(hour=16, minute=15)
+        return (nextclose - nysenow).seconds
+
+    def _stop_handler(self, sig, frame):
+        msg = ('SIGINT' if sig == signal.SIGINT else 'SIGTERM')
+        self._logger.info('signal {} received. stopping'.format(msg))
+        sys.exit(0)
+
+def _is_bday(date):
+    return date.day == ((date + BDay()) - BDay()).day
 
 def _getlogger():
     logger = logging.getLogger('tqmediator')
@@ -33,14 +98,5 @@ def _getlogdir():
             raise
     return log_dir
 
-def _run():
-    logger = _getlogger()
-    trackpuller = TrackPuller(logger)
-    totrack = trackpuller.get()
-    quotepuller = QuotePuller(logger)
-    quotes = quotepuller.get(totrack)
-    for quote in quotes:
-        print(quote)
-
 if __name__ == '__main__':
-    _run()
+    TrackQuoteMediator().start_daemon()
