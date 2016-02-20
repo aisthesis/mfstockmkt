@@ -23,22 +23,41 @@ class TrackQueue(object):
         self._logger = logger
         self._main_queue = deque()
         self._waiting = None
-        self._tz_nyc = pytz.timezone('US/Eastern')
+        self._tz_nyse = pytz.timezone('US/Eastern')
         self._prod = config.ENV == 'prod'
         self._n_retries = 4 if self._prod else 1
 
     def enqueue(self, entry):
         self._main_queue.append({
             'n_retries': 0,
-            'start_time': dt.datetime.now(tz=self._tz_nyc),
+            'start_time': dt.datetime.now(tz=self._tz_nyse),
             'entry': entry,
             })
 
     def ask(self):
-        # return wait time for next query
+        # return wait time in seconds for next query
+        # return -1 if queue is empty with nothing waiting
         if len(self._main_queue) == 0:
             if self._waiting is None:
-                return dt.timedelta()
+                self._logger.info('queue empty and processing complete')
+                return -1
+        # item waiting but no ack received yet, so wait for ack
+        # means client is doing something wrong
+        if self._waiting is not None:
+            self._logger.error('unexpected ask while object waiting for ack')
+            return 30
+        # something in queue and nothing waiting
+        nysenow = dt.datetime.now(tz=self._tz_nyse)
+        if self._main_queue[0]['start_time'] < nysenow:
+            self._logger.info('head of queue ready for immediate processing')
+            return 0
+        diff = self._main_queue[0]['start_time'] - nysenow
+        delay_secs = diff.seconds + diff.days * 24 * 3600
+        if not self._prod:
+            delay_secs = 15
+        self._logger.info('{} seconds delay required for processing head of queue'
+                .format(delay_secs))
+        return delay_secs
 
     def ack(self, success):
         # nothing waiting (should never happen)
@@ -57,9 +76,10 @@ class TrackQueue(object):
             return
         # requeue with appropriate wait time
         self._waiting['n_retries'] += 1
-        self._waiting['start_time'] = (dt.datetime.now(tz=self._tz_nyc) +
+        self._waiting['start_time'] = (dt.datetime.now(tz=self._tz_nyse) +
                 self._getwaittime(self._waiting['n_retries']))
-        # too late to retry, so abandon (shouldn't happen)
+        # too late to retry, so abandon
+        # can happen only if system is booted late in the day
         if self._waiting['start_time'].hour <= 12:
             self._logger.warn('abandoning job after midnight')
             self._waiting = None
@@ -70,8 +90,12 @@ class TrackQueue(object):
 
     def pop(self):
         if len(self._main_queue) > 0 and self._waiting is None:
+            if dt.datetime.now(tz=self._tz_nyse) < self._main_queue[0]['start_time']:
+                # isn't supposed to happen
+                self._logger.error('item not ready to process')
+                return None
             self._waiting = self._main_queue.popleft()
-            return self._waiting
+            return self._waiting['entry']
         return None
 
     def _getwaittime(self, n_retries):

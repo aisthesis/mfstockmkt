@@ -99,8 +99,8 @@ class Menu(object):
         return True
 
     def _getexpdt(self, expstr):
-        return self.tz.localize(dt.datetime.strptime(expstr, '%Y-%m-%d')).replace(hour=23,
-                minute=59, second=59)
+        # on 2016-02-19 expired options were unavailable on yahoo by 7:30 pm EST
+        return self.tz.localize(dt.datetime.strptime(expstr, '%Y-%m-%d')).replace(hour=19)
 
     def _confirmsave(self, entries):
         print('\nSaving the following options:')

@@ -32,7 +32,8 @@ class TrackQuoteMediator(object):
         self._logger.info('daemon starting')
         signal.signal(signal.SIGINT, self._stop_handler)
         signal.signal(signal.SIGTERM, self._stop_handler)
-        self._waitfornextclose()
+        if self._prod:
+            self._waitfornextclose()
         while True:
             self._run_job()
             self._waitfornextclose()
@@ -43,15 +44,29 @@ class TrackQuoteMediator(object):
         queue = TrackQueue(self._logger)
         for underlying in totrack:
             queue.enqueue({'eq': underlying, 'spec': totrack[underlying]})
-        item = queue.pop()
-        while item is not None:
-            print(item)
-            queue.ack(True)
-            print('acknowledged')
+        delay_secs = queue.ask()
+        i = 0
+        while delay_secs >= 0:
+            self._logger.info('waiting {} seconds'.format(delay_secs))
+            time.sleep(delay_secs)
             item = queue.pop()
+            i += 1
+            if not self._prod and i % 3 == 0:
+                # auto-fail every 3rd try in dev
+                self._logger.debug('auto-failing in dev for testing')
+                print('auto-failing in dev for item {}'.format(item))
+                queue.ack(False)
+            else:
+                print('success for item {}'.format(item))
+                queue.ack(True)
+            if item is None:
+                self._logger.info('item is None')
+                time.sleep(10)
+            delay_secs = queue.ask()
+        self._logger.info('finished processing queue')
 
     def _waitfornextclose(self):
-        seconds = 3
+        seconds = 15
         if self._prod:
             seconds = self._secondsuntilnextclose()
             self._logger.info('waiting {:.2f} hours until next close'.format(seconds / 3600.))
@@ -68,7 +83,8 @@ class TrackQuoteMediator(object):
                 return 0
             return (todaysclose - nysenow).seconds
         nextclose = (nysenow + BDay()).replace(hour=16, minute=15)
-        return (nextclose - nysenow).seconds
+        diff = nextclose - nysenow
+        return diff.seconds + diff.days * 24 * 3600
 
     def _stop_handler(self, sig, frame):
         msg = ('SIGINT' if sig == signal.SIGINT else 'SIGTERM')
