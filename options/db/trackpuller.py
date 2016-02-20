@@ -32,6 +32,7 @@ def _getactive(logger, client):
     utcnow = dt.datetime.utcnow()
     for entry in trackcoll.find({'Expiry': {'$gt': utcnow}}):
         _addentry(totrack, entry)
+    logger.info('found active track entries for {} equities'.format(len(totrack)))
     return totrack
 
 def _addentry(totrack, entry):

@@ -54,7 +54,7 @@ class TrackQueue(object):
         diff = self._main_queue[0]['start_time'] - nysenow
         delay_secs = diff.seconds + diff.days * 24 * 3600
         if not self._prod:
-            delay_secs = 15
+            delay_secs = constants.DEV['queue']['failure_delay']
         self._logger.info('{} seconds delay required for processing head of queue'
                 .format(delay_secs))
         return delay_secs
@@ -80,7 +80,7 @@ class TrackQueue(object):
                 self._getwaittime(self._waiting['n_retries']))
         # too late to retry, so abandon
         # can happen only if system is booted late in the day
-        if self._waiting['start_time'].hour <= 12:
+        if self._waiting['start_time'].hour <= 12 and self._prod:
             self._logger.warn('abandoning job after midnight')
             self._waiting = None
             return
@@ -99,5 +99,7 @@ class TrackQueue(object):
         return None
 
     def _getwaittime(self, n_retries):
-        return (3 ** n_retries) * dt.timedelta(minutes=1) 
+        if self._prod:
+            return (3 ** n_retries) * dt.timedelta(minutes=1) 
+        return dt.timedelta(seconds=constants.DEV['queue']['failure_delay'])
 
