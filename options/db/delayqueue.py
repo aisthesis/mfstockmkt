@@ -74,16 +74,15 @@ class DelayQueue(object):
                 self.ready.notify()
 
     def get(self):
-        with self.not_empty:
-            with self.ready:
-                if not len(self.queue): 
-                    raise Empty
-                utcnow = dt.datetime.utcnow()
-                if utcnow < self.queue[0][0]:
-                    raise NotReady
-                item = heappop(self.queue)[1]
-                self.not_full.notify()
-                return item
+        with self.ready:
+            if not len(self.queue): 
+                raise Empty
+            utcnow = dt.datetime.utcnow()
+            if utcnow < self.queue[0][0]:
+                raise NotReady
+            item = heappop(self.queue)[1]
+            self.not_full.notify()
+            return item
 
     def qsize(self):
         """
