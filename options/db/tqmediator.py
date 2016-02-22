@@ -17,9 +17,9 @@ import pytz
 
 import config
 import constants
+from delayqueue import DelayQueue, Full, Empty, NotReady
 from quotepuller import QuotePuller
 from trackpuller import TrackPuller
-from trackqueue import TrackQueue
 
 class TrackQuoteMediator(object):
 
@@ -27,6 +27,8 @@ class TrackQuoteMediator(object):
         self._logger = _getlogger()
         self._prod = config.ENV == 'prod'
         self._tznyse = pytz.timezone('US/Eastern')
+        # for auto-failing in dev
+        self._counter = 0
 
     def start_daemon(self):
         self._logger.info('daemon starting')
@@ -41,29 +43,48 @@ class TrackQuoteMediator(object):
     def _run_job(self):
         trackpuller = TrackPuller(self._logger)
         totrack = trackpuller.get()
-        queue = TrackQueue(self._logger)
+        queue = DelayQueue()
         for underlying in totrack:
-            queue.enqueue({'eq': underlying, 'spec': totrack[underlying]})
-        delay_secs = queue.ask()
-        i = 0
-        while delay_secs >= 0:
-            self._logger.info('waiting {} seconds'.format(delay_secs))
-            time.sleep(delay_secs)
-            item = queue.pop()
-            i += 1
-            if not self._prod and i % 3 == 0:
-                # auto-fail every 3rd try in dev
-                self._logger.debug('auto-failing in dev for testing')
-                print('auto-failing in dev for item {}'.format(item))
-                queue.ack(False)
-            else:
-                print('success for item {}'.format(item))
-                queue.ack(True)
-            if item is None:
-                self._logger.info('item is None')
-                time.sleep(10)
-            delay_secs = queue.ask()
+            queue.put({'eq': underlying, 'spec': totrack[underlying], 'n_retries': 0})
+        delay_secs = 0
+        self._counter = 0
+        param_key = 'prod' if self._prod else 'dev'
+        max_retries = constants.MAX_RETRIES[param_key]
+        while True:
+            try:
+                item = queue.get()
+                success = self._processqitem(item)
+                if not success:
+                    item['n_retries'] += 1
+                    if item['n_retries'] > max_retries:
+                        msg = ('{} retries would exceed maximum of {}, '
+                                'abandoning spec for {}').format(item['n_retries'],
+                                max_retries, item['eq'])
+                        self._logger.warn(msg)
+                    else:
+                        queue.put(item, self._waittoretry(item['n_retries']))
+            except Empty:
+                break
+            except NotReady:
+                delay_secs = queue.ask()
+                self._logger.info('queue not ready, waiting {:.1f} seconds'.format(delay_secs))
+                time.sleep(delay_secs)
+                continue
         self._logger.info('finished processing queue')
+
+    def _processqitem(self, item):
+        self._counter += 1
+        if not self._prod and self._counter % 3 == 0:
+            self._logger.debug('auto-failing in dev for testing')
+            print('auto-failing in dev for item {}'.format(item))
+            return False
+        print('success for item {}'.format(item))
+        return True
+
+    def _waittoretry(self, n_retries):
+        if self._prod:
+            return 60 * (3 ** n_retries)
+        return 15
 
     def _waitfornextclose(self):
         seconds = 15

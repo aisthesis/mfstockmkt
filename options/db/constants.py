@@ -22,8 +22,7 @@ DB = {
 INT_COLS = ('Vol', 'Open_Int',)
 FLOAT_COLS = ('Last', 'Bid', 'Ask',)
 
-DEV = {
-        'queue': {
-            'failure_delay': 15,
-            },
+MAX_RETRIES = {
+        'dev': 2,
+        'prod': 4,
         }
