@@ -6,6 +6,7 @@ Mediator for workflow to save specific options.
 """
 
 import datetime as dt
+from functools import partial
 import logging
 import os
 import signal
@@ -18,8 +19,10 @@ import pytz
 
 import config
 import constants
+from dbwrapper import job
 from delayqueue import DelayQueue, Full, Empty, NotReady
 from quoteextractor import QuoteExtractor
+from quotesaver import savequotes
 from trackpuller import TrackPuller
 
 class TrackQuoteMediator(object):
@@ -89,7 +92,7 @@ class TrackQuoteMediator(object):
             self.logger.info('successfully retrieved options data for {}'.format(item['eq']))
             quotes = QuoteExtractor(self.logger, item['eq'], opts, self.tznyse).get(item['specs'])
             self.logger.info('{} quote(s) extracted for {}'.format(len(quotes), item['eq']))
-            # TODO save to mongo
+            job(self.logger, partial(savequotes, quotes))
             return True
 
     def _waittoretry(self, n_retries):
