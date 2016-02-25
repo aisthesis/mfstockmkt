@@ -6,6 +6,7 @@ Diagonal butterfly scanner
 """
 
 import locale
+import sys
 import traceback
 
 import pandas as pd
@@ -35,13 +36,16 @@ def scan_all():
     print('scanning {} equities for diagonal butterfly spreads'.format(len(equities)))
     butterflies = []
     for equity in equities:
-        print("Scanning diagonal butterfly spreads for '{}'".format(equity))
+        print('{}'.format(equity), end='')
         try:
             btfs_for_eq = scan(equity)
-            print("{} spreads found for '{}'".format(len(btfs_for_eq), equity))
-            butterflies.extend(btfs_for_eq)
+            if len(btfs_for_eq) > 0:
+                butterflies.extend(btfs_for_eq)
+            print('({}).'.format(len(btfs_for_eq)), end='')
         except Exception:
             traceback.print_exc()
+        finally:
+            sys.stdout.flush()
     locale.setlocale(locale.LC_ALL, loc)
     return butterflies
 
@@ -60,9 +64,13 @@ def scan(equity):
     return butterflies
 
 def show_spreads(butterflies):
-    for butterfly in butterflies:
+    if len(butterflies) > 0:
         print('')
-        show_spread(butterfly)
+        for butterfly in butterflies:
+            print('')
+            show_spread(butterfly)
+    else:
+        print('\nNo spreads meeting the requirements were found.')
 
 def show_spread(butterfly):
     print("{} at {:.2f}:".format(butterfly['underlying'], butterfly['eqprice']))
