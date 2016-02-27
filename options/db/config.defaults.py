@@ -9,7 +9,10 @@ as appropriate for your system.
 """
 
 ENV = 'dev'
-LOG_ROOT = '/usr/local/var/log'
+# OS X
+# LOG_ROOT = '/usr/local/var/log'
+# Ubuntu
+LOG_ROOT = '/var/log/opttrack'
 MONGO_CLIENT = {
         'host': '127.0.0.1',
         'port': 27017
