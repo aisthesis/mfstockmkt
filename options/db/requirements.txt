@@ -1,5 +1,6 @@
 beautifulsoup4==4.4.1
 cycler==0.9.0
+delayqueue==0.0.3
 html5lib==0.9999999
 lxml==3.5.0
 matplotlib==1.5.1
