@@ -20,7 +20,7 @@ import pytz
 import config
 import constants
 from dbwrapper import job
-from delayqueue import DelayQueue, Full, Empty, NotReady
+from delayqueue import *
 from quoteextractor import QuoteExtractor
 from quotesaver import savequotes
 from trackpuller import TrackPuller
@@ -31,6 +31,7 @@ class TrackQuoteMediator(object):
         self.logger = _getlogger()
         self.prod = config.ENV == 'prod'
         self.tznyse = pytz.timezone('US/Eastern')
+        self.done_today = False
         # for auto-failing in dev
         self.counter = 0
 
@@ -45,6 +46,7 @@ class TrackQuoteMediator(object):
             self._waitfornextclose()
 
     def _run_job(self):
+        self.done_today = False
         trackpuller = TrackPuller(self.logger)
         totrack = trackpuller.get()
         queue = DelayQueue()
@@ -68,6 +70,8 @@ class TrackQuoteMediator(object):
                     else:
                         queue.put(item, self._waittoretry(item['n_retries']))
             except Empty:
+                self.done_today = True
+                self.logger.info('done for today')
                 break
             except NotReady:
                 delay_secs = queue.ask()
@@ -111,7 +115,7 @@ class TrackQuoteMediator(object):
 
     def _secondsuntilnextclose(self):
         nysenow = dt.datetime.now(tz=self.tznyse)
-        if _is_bday(nysenow):
+        if _is_bday(nysenow) and not self.done_today:
             # a few minutes after close to be safe
             todaysclose = nysenow.replace(hour=16, minute=15)
             if nysenow >= todaysclose:
