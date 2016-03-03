@@ -58,5 +58,15 @@ DGB_TRACK = [
         'farexp': '2016-09-16',
         'put': {'strike': 110.},
         'call': {'strike': 190.}
-        }]
+        },
+        {   
+        'underlying': 'BMRN',
+        'straddle': {
+            'strike': 85.,
+            'exp': '2016-07-15'},
+        'farexp': '2016-10-21',
+        'put': {'strike': 65.},
+        'call': {'strike': 105.}
+        },
+        ]
 
