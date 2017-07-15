@@ -29,14 +29,15 @@ def get_daily(eqdata, selection='Adj Close'):
             eqdata.loc[:, selection].values[:-1])
     return float(np.std(growthdata.values, dtype=np.float64))
 
-def show(_volatility, price):
+def show(n_sessions, _volatility, price):
     price = float(price)
     diff = price * _volatility
-    print('{:.2f} pct volatility'.format(_volatility * 100.))
+    suffix = '' if n_sessions == 1 else 's'
+    print('Volatility over {} session{} : {:.2f} pct'.format(n_sessions, suffix, _volatility * 100.))
     print('Reference price: $ {:.2f}'.format(price))
     print('Range of 1 std for given period:')
-    print('Low price: $ {:2f}'.format(price - diff))
-    print('High price: $ {:2f}'.format(price + diff))
+    print('Low price: $ {:.2f}'.format(price - diff))
+    print('High price: $ {:.2f}'.format(price + diff))
 
 def _get_eqdata(**kwargs):
     eqdata = web.DataReader(kwargs['equity'], 'yahoo', start=kwargs['start'])
@@ -59,5 +60,5 @@ if __name__ == '__main__':
     if eqdata.index[0] > kwargs['start'] + 5 * pd.DateOffset():
         raise InsufficientData("insufficient data for equity '{}'".format(kwargs['equity']))
     _volatility = get(eqdata, window=kwargs['window'])
-    show(_volatility, eqdata.loc[:, 'Adj Close'].values[-1])
+    show(kwargs['window'], _volatility, eqdata.loc[:, 'Adj Close'].values[-1])
 
