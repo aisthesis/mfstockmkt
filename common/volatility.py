@@ -34,7 +34,7 @@ def show(n_sessions, _volatility, ave_daily_return, price):
     print('Volatility over {} session{} : {:.2f} pct'.format(n_sessions, suffix, _volatility * 100.))
     print('Expected return over {} session{} : {:.2f} pct'.format(n_sessions, suffix, ave_daily_return * 100. * n_sessions))
     print('Reference price: $ {:.2f}'.format(price))
-    print('Range of 1 std for given period with growth adjustment:')
+    print('Range of 1 std up or down with growth adjustment:')
     print('Low price: $ {:.2f}'.format(mean_price - diff))
     print('High price: $ {:.2f}'.format(mean_price + diff))
 
